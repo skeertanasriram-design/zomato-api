@@ -228,16 +228,22 @@ def get_restaurants(
 
     cities = sorted(restaurants["city"].dropna().unique().tolist())
 
-    df = df[pd.to_numeric(df["rating"], errors="coerce").notna()]
+    df = df[pd.to_numeric(df["rating"], errors="coerce").notna()].copy()
     df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
+    df["cost"]   = pd.to_numeric(df["cost"],   errors="coerce")
+
+    result = (
+        df[["id","name","city","rating","cost","cuisine","address"]]
+          .sort_values("rating", ascending=False)
+          .head(200)
+          .fillna("")
+          .to_dict(orient="records")
+    )
 
     return {
         "total": len(df),
         "cities": cities,
-        "restaurants": df[["id","name","city","rating","cost","cuisine","address"]]
-                        .sort_values("rating", ascending=False)
-                        .head(200)
-                        .to_dict(orient="records"),
+        "restaurants": result,
     }
 
 
