@@ -122,9 +122,14 @@ def get_rfm(segment: str = Query(default=None)):
               .reset_index()
     )
 
-    rfm["r_score"] = pd.qcut(rfm["recency"],   5, labels=[5,4,3,2,1], duplicates="drop").astype(int)
-    rfm["f_score"] = pd.qcut(rfm["frequency"], 5, labels=[1,2,3,4,5], duplicates="drop").astype(int)
-    rfm["m_score"] = pd.qcut(rfm["monetary"],  5, labels=[1,2,3,4,5], duplicates="drop").astype(int)
+    def rank_score(series, ascending=True):
+        ranked = series.rank(method="first", ascending=ascending)
+        scaled = ((ranked - 1) / (len(ranked) - 1) * 4 + 1).round().astype(int)
+        return scaled.clip(1, 5)
+
+    rfm["r_score"] = rank_score(rfm["recency"],   ascending=False)
+    rfm["f_score"] = rank_score(rfm["frequency"], ascending=True)
+    rfm["m_score"] = rank_score(rfm["monetary"],  ascending=True)
 
     def label(row):
         r, f, m = row["r_score"], row["f_score"], row["m_score"]
