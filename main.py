@@ -186,8 +186,10 @@ async def predict_churn(file: UploadFile = File(...)):
     if rfm.empty:
         return {"error": "No matching user_ids found in orders data."}
 
-    features = rfm[["recency", "frequency", "monetary"]]
-    rfm["churn_probability"] = model.predict_proba(features)[:, 1].round(3)
+    # Rule-based churn scoring (high recency + low frequency = churn risk)
+    rfm["recency_score"]  = (rfm["recency"]   / rfm["recency"].max())
+    rfm["freq_score"]     = 1 - (rfm["frequency"] / rfm["frequency"].max())
+    rfm["churn_probability"] = ((rfm["recency_score"] * 0.6) + (rfm["freq_score"] * 0.4)).round(3)
     rfm["revenue_at_risk"]   = (rfm["churn_probability"] * rfm["monetary"]).round(2)
     rfm["churn_predicted"]   = (rfm["churn_probability"] >= 0.5).astype(int)
 
