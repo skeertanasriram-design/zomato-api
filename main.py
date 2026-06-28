@@ -222,16 +222,19 @@ def get_restaurants(
     if cuisine:
         df = df[df["cuisine"].str.contains(cuisine, case=False, na=False)]
     if veg_only:
-        veg_ids = menu.merge(food[food["veg_or_non_veg"] == "Veg"]["f_id"], on="f_id")["r_id"].unique()
+        veg_fids = food[food["veg_or_non_veg"] == "Veg"][["f_id"]]
+        veg_ids = menu.merge(veg_fids, on="f_id")["r_id"].unique()
         df = df[df["id"].isin(veg_ids)]
 
     cities = sorted(restaurants["city"].dropna().unique().tolist())
+
+    df = df[pd.to_numeric(df["rating"], errors="coerce").notna()]
+    df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
 
     return {
         "total": len(df),
         "cities": cities,
         "restaurants": df[["id","name","city","rating","cost","cuisine","address"]]
-                        .dropna(subset=["rating"])
                         .sort_values("rating", ascending=False)
                         .head(200)
                         .to_dict(orient="records"),
