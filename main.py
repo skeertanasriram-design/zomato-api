@@ -6,7 +6,7 @@ import io
 import os
 import urllib.request
 
-app = FastAPI(title="Zomato Portfolio API")
+app = FastAPI(title="Zomato Portfolio API v2")
 
 app.add_middleware(
     CORSMiddleware,
