@@ -152,6 +152,7 @@ def get_rfm(segment: str = Query(default=None)):
            )
            .round(1)
            .reset_index()
+           .fillna(0)
            .to_dict(orient="records")
     )
 
@@ -160,7 +161,7 @@ def get_rfm(segment: str = Query(default=None)):
         seg_df = rfm[rfm["segment"] == segment].merge(
             users[["user_id","name","occupation","monthly_income"]], on="user_id", how="left"
         )
-        customers = seg_df.head(200).to_dict(orient="records")
+        customers = seg_df.head(200).fillna("").to_dict(orient="records")
 
     return {"summary": summary, "customers": customers}
 
@@ -194,6 +195,7 @@ async def predict_churn(file: UploadFile = File(...)):
         rfm.merge(users[["user_id","name","occupation","monthly_income"]], on="user_id", how="left")
            .sort_values("revenue_at_risk", ascending=False)
            .head(500)
+           .fillna("")
            .to_dict(orient="records")
     )
 
