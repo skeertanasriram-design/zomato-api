@@ -169,7 +169,8 @@ def get_rfm(segment: str = Query(default=None)):
 # ── /predict-churn ─────────────────────────────────────────────────────────────
 @app.post("/predict-churn")
 async def predict_churn(file: UploadFile = File(...)):
-    contents = await file.read()
+    try:
+        contents = await file.read()
     upload_df = pd.read_csv(io.BytesIO(contents))
 
     rfm = (
@@ -207,7 +208,9 @@ async def predict_churn(file: UploadFile = File(...)):
         "total_revenue_at_risk": round(float(rfm["revenue_at_risk"].sum()), 2),
     }
 
-    return {"summary": summary, "at_risk_customers": result}
+        return {"summary": summary, "at_risk_customers": result}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # ── /restaurants ──────────────────────────────────────────────────────────────
