@@ -158,8 +158,9 @@ def get_rfm(segment: str = Query(default=None)):
 
     customers = []
     if segment:
+        user_cols = [c for c in ["user_id","name","occupation","monthly_income","Occupation","Monthly Income"] if c in users.columns]
         seg_df = rfm[rfm["segment"] == segment].merge(
-            users[["user_id","name","occupation","monthly_income"]], on="user_id", how="left"
+            users[user_cols], on="user_id", how="left"
         )
         customers = seg_df.head(200).fillna("").to_dict(orient="records")
 
@@ -197,8 +198,9 @@ async def predict_churn(file: UploadFile = File(...)):
         rfm["revenue_at_risk"]   = (rfm["churn_probability"] * rfm["monetary"]).round(2)
         rfm["churn_predicted"]   = (rfm["churn_probability"] >= 0.5).astype(int)
 
+        user_cols = [c for c in ["user_id","name","occupation","monthly_income","Occupation","Monthly Income"] if c in users.columns]
         result = (
-            rfm.merge(users[["user_id","name","occupation","monthly_income"]], on="user_id", how="left")
+            rfm.merge(users[user_cols], on="user_id", how="left")
                .sort_values("revenue_at_risk", ascending=False)
                .head(500)
                .fillna("")
@@ -262,3 +264,14 @@ def get_restaurants(
 @app.get("/")
 def root():
     return {"status": "ok", "message": "Zomato Portfolio API is running"}
+
+
+@app.get("/debug-columns")
+def debug_columns():
+    return {
+        "orders": list(orders.columns),
+        "users": list(users.columns),
+        "restaurants": list(restaurants.columns),
+        "menu": list(menu.columns),
+        "food": list(food.columns),
+    }
