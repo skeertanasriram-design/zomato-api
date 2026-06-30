@@ -171,46 +171,50 @@ def get_rfm(segment: str = Query(default=None)):
 async def predict_churn(file: UploadFile = File(...)):
     try:
         contents = await file.read()
-    upload_df = pd.read_csv(io.BytesIO(contents))
+        upload_df = pd.read_csv(io.BytesIO(contents))
+        upload_df.columns = upload_df.columns.str.strip()
 
-    rfm = (
-        orders[orders["user_id"].isin(upload_df["user_id"])]
-              .groupby("user_id")
-              .agg(
-                  recency  = ("order_date",   lambda x: (SNAPSHOT_DATE - x.max()).days),
-                  frequency= ("user_id",      "count"),
-                  monetary = ("sales_amount", "sum"),
-              )
-              .reset_index()
-    )
+        if "user_id" not in upload_df.columns:
+            return {"error": f"Column 'user_id' not found. Found: {list(upload_df.columns)}"}
 
-    if rfm.empty:
-        return {"error": "No matching user_ids found in orders data."}
+        rfm = (
+            orders[orders["user_id"].isin(upload_df["user_id"])]
+                  .groupby("user_id")
+                  .agg(
+                      recency  = ("order_date",   lambda x: (SNAPSHOT_DATE - x.max()).days),
+                      frequency= ("user_id",      "count"),
+                      monetary = ("sales_amount", "sum"),
+                  )
+                  .reset_index()
+        )
 
-    # Rule-based churn scoring (high recency + low frequency = churn risk)
-    rfm["recency_score"]  = (rfm["recency"]   / rfm["recency"].max())
-    rfm["freq_score"]     = 1 - (rfm["frequency"] / rfm["frequency"].max())
-    rfm["churn_probability"] = ((rfm["recency_score"] * 0.6) + (rfm["freq_score"] * 0.4)).round(3)
-    rfm["revenue_at_risk"]   = (rfm["churn_probability"] * rfm["monetary"]).round(2)
-    rfm["churn_predicted"]   = (rfm["churn_probability"] >= 0.5).astype(int)
+        if rfm.empty:
+            return {"error": "No matching user_ids found in orders data."}
 
-    result = (
-        rfm.merge(users[["user_id","name","occupation","monthly_income"]], on="user_id", how="left")
-           .sort_values("revenue_at_risk", ascending=False)
-           .head(500)
-           .fillna("")
-           .to_dict(orient="records")
-    )
+        rfm["recency_score"]     = (rfm["recency"]   / rfm["recency"].max())
+        rfm["freq_score"]        = 1 - (rfm["frequency"] / rfm["frequency"].max())
+        rfm["churn_probability"] = ((rfm["recency_score"] * 0.6) + (rfm["freq_score"] * 0.4)).round(3)
+        rfm["revenue_at_risk"]   = (rfm["churn_probability"] * rfm["monetary"]).round(2)
+        rfm["churn_predicted"]   = (rfm["churn_probability"] >= 0.5).astype(int)
 
-    summary = {
-        "total_users_scored": len(rfm),
-        "predicted_churners": int(rfm["churn_predicted"].sum()),
-        "total_revenue_at_risk": round(float(rfm["revenue_at_risk"].sum()), 2),
-    }
+        result = (
+            rfm.merge(users[["user_id","name","occupation","monthly_income"]], on="user_id", how="left")
+               .sort_values("revenue_at_risk", ascending=False)
+               .head(500)
+               .fillna("")
+               .to_dict(orient="records")
+        )
+
+        summary = {
+            "total_users_scored": len(rfm),
+            "predicted_churners": int(rfm["churn_predicted"].sum()),
+            "total_revenue_at_risk": round(float(rfm["revenue_at_risk"].sum()), 2),
+        }
 
         return {"summary": summary, "at_risk_customers": result}
+
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e), "type": type(e).__name__}
 
 
 # ── /restaurants ──────────────────────────────────────────────────────────────
